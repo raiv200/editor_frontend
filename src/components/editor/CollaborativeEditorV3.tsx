@@ -1,5 +1,5 @@
 // src/components/editor/CollaborativeEditor.tsx
-// FINAL FIXED VERSION - Properly handles sync timing, awareness, and presence
+// Updated UI to match Figma design - ALL COLLABORATION FUNCTIONALITY PRESERVED
 
 "use client";
 
@@ -16,10 +16,14 @@ import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
-  Users,
-  Save,
+  List,
+  ListOrdered,
+  Link,
+  Image,
   Loader2,
   Check,
+  Save,
+  Users,
 } from "lucide-react";
 
 interface CollaborativeEditorProps {
@@ -34,6 +38,7 @@ interface CollaborativeEditorProps {
   initialContent?: string | null;
   onSave?: (content: { html: string; json: object }) => Promise<void>;
   maxChars?: number;
+  answeredAt?: string | null;
 }
 
 interface OnlineUser {
@@ -62,15 +67,18 @@ export default function CollaborativeEditor({
   token,
   appId,
   user,
-  placeholder = "Start typing...",
+  placeholder = "Start typing your answer or select an AI suggestion from the right panel...",
   initialContent = null,
   onSave,
   maxChars = 3000,
+  answeredAt,
 }: CollaborativeEditorProps) {
   const [isSynced, setIsSynced] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [charCount, setCharCount] = useState(0);
   const [editorReady, setEditorReady] = useState(false);
@@ -85,8 +93,6 @@ export default function CollaborativeEditor({
   useEffect(() => {
     mountedRef.current = true;
     initialContentLoadedRef.current = false;
-    
-    console.log("🔄 Initializing for document:", documentName);
 
     // Create Y.Doc
     const ydoc = new Y.Doc();
@@ -100,26 +106,20 @@ export default function CollaborativeEditor({
       document: ydoc,
       onSynced() {
         if (!mountedRef.current) return;
-        console.log("✅ Document synced:", documentName);
         setIsSynced(true);
         setIsConnecting(false);
       },
       onConnect() {
         if (!mountedRef.current) return;
-        console.log("🔌 Connected to:", documentName);
-        // Don't set isConnecting false here - wait for sync
       },
       onDisconnect() {
         if (!mountedRef.current) return;
-        console.log("🔌 Disconnected from:", documentName);
         setIsSynced(false);
         setIsConnecting(true);
       },
       onStatus({ status }) {
         if (!mountedRef.current) return;
-        console.log("📡 Status:", status);
-        if (status === 'connected') {
-          // Check if already synced
+        if (status === "connected") {
           if (provider.isSynced) {
             setIsSynced(true);
             setIsConnecting(false);
@@ -149,10 +149,9 @@ export default function CollaborativeEditor({
     provider.awareness?.on("change", handleAwarenessChange);
     provider.awareness?.on("update", handleAwarenessChange);
 
-    // Check initial sync state after a short delay (in case synced event already fired)
+    // Check initial sync state after a short delay
     const checkSyncTimer = setTimeout(() => {
       if (mountedRef.current && provider.isSynced) {
-        console.log("✅ Already synced (checked after mount)");
         setIsSynced(true);
         setIsConnecting(false);
       }
@@ -163,28 +162,22 @@ export default function CollaborativeEditor({
 
     // Cleanup function
     return () => {
-      console.log("🧹 Cleaning up for document:", documentName);
       mountedRef.current = false;
       clearTimeout(checkSyncTimer);
 
-      // Remove awareness listeners
       provider.awareness?.off("change", handleAwarenessChange);
       provider.awareness?.off("update", handleAwarenessChange);
 
-      // Clear local awareness state before destroying
       if (provider.awareness) {
         provider.awareness.setLocalState(null);
       }
 
-      // Destroy provider and doc
       provider.destroy();
       ydoc.destroy();
 
-      // Clear refs
       providerRef.current = null;
       ydocRef.current = null;
-      
-      // Reset states
+
       setEditorReady(false);
       setIsSynced(false);
       setIsConnecting(true);
@@ -201,13 +194,9 @@ export default function CollaborativeEditor({
     const usersMap = new Map<string, OnlineUser>();
 
     states.forEach((state: any, clientId: number) => {
-      // Skip if no user data
       if (!state?.user?.name) return;
-      
-      // Skip current user (don't show own cursor in list)
       if (clientId === myClientId) return;
 
-      // Use name as key to deduplicate same user with multiple connections
       const userName = state.user.name;
       if (!usersMap.has(userName)) {
         usersMap.set(userName, {
@@ -226,8 +215,8 @@ export default function CollaborativeEditor({
     {
       extensions: [
         StarterKit.configure({
-          history: false, // Disable - collaboration handles undo/redo
-        }as any),
+          history: false,
+        } as any),
         Underline,
         Placeholder.configure({
           placeholder,
@@ -255,7 +244,8 @@ export default function CollaborativeEditor({
       ],
       editorProps: {
         attributes: {
-          class: "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-4 py-3",
+          class:
+            "prose prose-sm max-w-none focus:outline-none min-h-[200px] px-4 py-3",
         },
       },
       immediatelyRender: false,
@@ -263,7 +253,7 @@ export default function CollaborativeEditor({
         setCharCount(editor.getText().length);
       },
     },
-    [editorReady, user.name, user.color, placeholder]
+    [editorReady, user.name, user.color, placeholder],
   );
 
   // Load initial content from database after sync
@@ -277,24 +267,13 @@ export default function CollaborativeEditor({
     const cloudHasContent = yXmlFragment.length > 0;
     const alreadyInitialized = configMap.get("initialContentLoaded");
 
-    console.log("📋 Content check:", {
-      cloudHasContent,
-      alreadyInitialized,
-      hasDbContent: !!initialContent,
-    });
-
     if (cloudHasContent || alreadyInitialized) {
-      // Tiptap Cloud has content - use it
-      console.log("📄 Using content from Tiptap Cloud");
       initialContentLoadedRef.current = true;
     } else if (initialContent) {
-      // Load from database
-      console.log("📝 Loading content from database");
       configMap.set("initialContentLoaded", true);
       initialContentLoadedRef.current = true;
       editor.commands.setContent(initialContent);
     } else {
-      // Empty document
       initialContentLoadedRef.current = true;
     }
 
@@ -326,7 +305,7 @@ export default function CollaborativeEditor({
   // Loading state
   if (!editorReady || !editor) {
     return (
-      <div className="border border-gray-200 rounded-lg bg-white min-h-[300px] flex items-center justify-center">
+      <div className="border border-gray-200 rounded-xl bg-white min-h-[300px] flex items-center justify-center">
         <div className="flex items-center gap-2 text-gray-400">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span>Loading editor...</span>
@@ -335,88 +314,149 @@ export default function CollaborativeEditor({
     );
   }
 
-  // Total online = other users + self
   const totalOnline = onlineUsers.length + 1;
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
-      {/* Status Bar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              isSynced
-                ? "bg-green-500"
+    <div className="h-full flex flex-col border border-gray-200 rounded-xl bg-white overflow-hidden">
+      {/* Status Bar - Minimal */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isSynced
+                  ? "bg-green-500"
+                  : isConnecting
+                    ? "bg-yellow-500 animate-pulse"
+                    : "bg-red-500"
+              }`}
+            />
+            <span className="text-xs text-gray-500">
+              {isSynced
+                ? "Synced"
                 : isConnecting
-                ? "bg-yellow-500 animate-pulse"
-                : "bg-red-500"
-            }`}
-          />
-          <span className="text-xs text-gray-500">
-            {isSynced ? "Synced" : isConnecting ? "Connecting..." : "Disconnected"}
-          </span>
+                  ? "Connecting..."
+                  : "Disconnected"}
+            </span>
+          </div>
+          <div>
+            {answeredAt && (
+              <p className="text-xs text-gray-500">
+                Last saved: {new Date(answeredAt).toLocaleString()}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Online Users - shows OTHER users only */}
-        <div className="flex items-center gap-2">
-          <Users size={14} className="text-gray-400" />
-          <div className="flex -space-x-2">
-            {onlineUsers.map((u) => (
-              <div
-                key={u.name}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white shadow-sm"
-                style={{ backgroundColor: u.color }}
-                title={u.name}
-              >
-                {u.name.charAt(0).toUpperCase()}
-              </div>
-            ))}
-          </div>
-          <span className="text-xs text-gray-500">{totalOnline} online</span>
-        </div>
+         
+                {/* <div className="flex items-center gap-2">
+                  <Users size={14} className="text-gray-400" />
+                  <div className="flex -space-x-2">
+                    
+                    {onlineUsers.map((u) => (
+                      <div
+                        key={u.name}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white shadow-sm"
+                        style={{ backgroundColor: u.color }}
+                        title={u.name}
+                      >
+                        {u.name.charAt(0).toUpperCase()}
+                      </div>
+                    ))}
+                   
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white shadow-sm"
+                      style={{ backgroundColor: user.color }}
+                      title={`${user.name} (you)`}
+                    >
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500">{totalOnline} online</span>
+                </div> */}
+
+        
+        <span
+          className={`text-xs ${
+            charCount > maxChars ? "text-red-600 font-medium" : "text-gray-500"
+          }`}
+        >
+          {charCount.toLocaleString()} / {maxChars.toLocaleString()} characters
+        </span>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
-        <div className="flex items-center gap-1">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={editor.isActive("bold")}
-            title="Bold (Ctrl+B)"
-          >
-            <Bold size={18} />
-          </ToolbarButton>
+      {/* Toolbar - Matching Figma Design */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-100">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          isActive={editor.isActive("bold")}
+          title="Bold"
+        >
+          <Bold size={16} />
+        </ToolbarButton>
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={editor.isActive("italic")}
-            title="Italic (Ctrl+I)"
-          >
-            <Italic size={18} />
-          </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          isActive={editor.isActive("italic")}
+          title="Italic"
+        >
+          <Italic size={16} />
+        </ToolbarButton>
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            isActive={editor.isActive("underline")}
-            title="Underline (Ctrl+U)"
-          >
-            <UnderlineIcon size={18} />
-          </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          isActive={editor.isActive("underline")}
+          title="Underline"
+        >
+          <UnderlineIcon size={16} />
+        </ToolbarButton>
 
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-        </div>
+        <div className="w-px h-5 bg-gray-200 mx-1" />
 
-        {/* Save Button */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          isActive={editor.isActive("bulletList")}
+          title="Bullet List"
+        >
+          <List size={16} />
+        </ToolbarButton>
+
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          isActive={editor.isActive("orderedList")}
+          title="Numbered List"
+        >
+          <ListOrdered size={16} />
+        </ToolbarButton>
+
+        <div className="w-px h-5 bg-gray-200 mx-1" />
+
+        <ToolbarButton onClick={() => {}} isActive={false} title="Insert Link">
+          <Link size={16} />
+        </ToolbarButton>
+
+        <ToolbarButton onClick={() => {}} isActive={false} title="Insert Image">
+          <Image size={16} />
+        </ToolbarButton>
+      </div>
+
+      {/* Editor Content */}
+      <div className="flex-1">
+        <EditorContent editor={editor} />
+      </div>
+
+      {/* Footer with Save Button */}
+      <div className="flex items-center justify-end gap-3 px-4 py-3 border-t border-gray-100 bg-gray-50">
         {onSave && (
           <button
             onClick={handleSave}
             disabled={isSaving || !isSynced}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               saveStatus === "saved"
-                ? "bg-green-100 text-green-700"
+                ? "bg-green-50 text-green-700 border border-green-200"
                 : saveStatus === "error"
-                ? "bg-red-100 text-red-700"
-                : "bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
             }`}
           >
             {isSaving ? (
@@ -434,25 +474,11 @@ export default function CollaborativeEditor({
             ) : (
               <>
                 <Save size={14} />
-                Save Answer
+                Save Draft
               </>
             )}
           </button>
         )}
-      </div>
-
-      {/* Editor Content */}
-      <EditorContent editor={editor} />
-
-      {/* Character Count */}
-      <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex justify-end">
-        <span
-          className={`text-xs ${
-            charCount > maxChars ? "text-red-600 font-medium" : "text-gray-500"
-          }`}
-        >
-          {charCount.toLocaleString()} / {maxChars.toLocaleString()} characters
-        </span>
       </div>
 
       {/* Collaboration Caret Styles */}
@@ -497,6 +523,19 @@ export default function CollaborativeEditor({
         .ProseMirror .selection {
           background: rgba(200, 200, 255, 0.4);
         }
+
+        .ProseMirror p {
+          margin: 0.5em 0;
+        }
+
+        .ProseMirror ul,
+        .ProseMirror ol {
+          padding-left: 1.5em;
+        }
+
+        .ProseMirror li {
+          margin: 0.25em 0;
+        }
       `}</style>
     </div>
   );
@@ -517,8 +556,10 @@ function ToolbarButton({
     <button
       type="button"
       onClick={onClick}
-      className={`p-2 rounded transition-colors ${
-        isActive ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+      className={`p-2 rounded-lg transition-colors ${
+        isActive
+          ? "bg-blue-100 text-blue-600"
+          : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
       }`}
       title={title}
     >

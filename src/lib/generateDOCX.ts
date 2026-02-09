@@ -371,28 +371,6 @@ export const generateDOCX = async ({
     );
   }
 
-  // Subtitle
-  // children.push(
-  //   new Paragraph({
-  //     children: [
-  //       new TextRun({
-  //         text: "Response Document",
-  //         size: 22, // 11pt
-  //         color: "6B7280",
-  //       }),
-  //     ],
-  //     spacing: { after: 400 },
-  //     border: {
-  //       bottom: {
-  //         color: "E5E7EB",
-  //         style: BorderStyle.SINGLE,
-  //         size: 8,
-  //         space: 8,
-  //       },
-  //     },
-  //   })
-  // );
-
   // Sections
   for (const section of sections) {
     // Section Header

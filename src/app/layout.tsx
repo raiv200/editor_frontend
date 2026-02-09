@@ -5,8 +5,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Raspond",
-  description: "RFP Software",
+  title: "Raspond - RFP Collaboration Platform",
+  description: "Collaborative RFP response platform with AI assistance",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

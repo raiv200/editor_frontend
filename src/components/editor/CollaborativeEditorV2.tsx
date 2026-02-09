@@ -451,7 +451,10 @@ export default function CollaborativeEditor({
       </div>
 
       {/* Editor Content */}
-      <EditorContent editor={editor} />
+       <div className=" max-h-[200px]">
+
+      <EditorContent editor={editor} className="max-h-[200px] overflow-y-scroll" />
+       </div>
 
       {/* Character Count */}
       <div className="px-3 py-2 border-t border-gray-200 bg-gray-50 flex justify-end">

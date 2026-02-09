@@ -1,5 +1,5 @@
 // src/lib/generatePDF.ts
-// Fixed version - keeps formatted text segments on the same line
+// Fixed version - properly handles ordered/unordered lists
 
 import { jsPDF } from "jspdf";
 import { PageSettings, getEffectiveDimensions } from "@/types/export";
@@ -32,11 +32,19 @@ interface TextSegment {
   highlight?: string;
 }
 
-// Parse HTML to segments - handles inline formatting properly
-const parseHTMLToSegments = (html: string): TextSegment[][] => {
+// Paragraph with optional list info
+interface Paragraph {
+  segments: TextSegment[];
+  listType?: "ordered" | "unordered";
+  listIndex?: number;
+  indent?: number;
+}
+
+// Parse HTML to paragraphs with list support
+const parseHTMLToParagraphs = (html: string): Paragraph[] => {
   if (!html || html === "<p></p>") return [];
 
-  const paragraphs: TextSegment[][] = [];
+  const paragraphs: Paragraph[] = [];
   const temp = document.createElement("div");
   temp.innerHTML = html;
 
@@ -47,94 +55,109 @@ const parseHTMLToSegments = (html: string): TextSegment[][] => {
     highlight?: string;
   }
 
-  const processNode = (
-    node: Node,
-    formatting: Formatting,
-    currentParagraph: TextSegment[]
-  ): TextSegment[] => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent || "";
-      if (text) {
-        currentParagraph.push({
-          text,
-          bold: formatting.bold,
-          italic: formatting.italic,
-          underline: formatting.underline,
-          highlight: formatting.highlight,
-        });
-      }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement;
-      const tagName = element.tagName.toLowerCase();
-
-      // Handle block elements that create new paragraphs
-      if (tagName === "p" || tagName === "div" || tagName === "br") {
-        if (tagName === "br") {
-          // Line break - start new paragraph
-          if (currentParagraph.length > 0) {
-            paragraphs.push([...currentParagraph]);
-            currentParagraph.length = 0;
-          }
-        } else {
-          // Process content of p/div
-          const newFormatting = { ...formatting };
-          element.childNodes.forEach((child) => {
-            processNode(child, newFormatting, currentParagraph);
+  // Extract text segments from an element with formatting
+  const extractSegments = (element: Element | Node, formatting: Formatting = {}): TextSegment[] => {
+    const segments: TextSegment[] = [];
+    
+    const processNode = (node: Node, fmt: Formatting) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent || "";
+        if (text) {
+          segments.push({
+            text,
+            bold: fmt.bold,
+            italic: fmt.italic,
+            underline: fmt.underline,
+            highlight: fmt.highlight,
           });
-          // End of paragraph
-          if (currentParagraph.length > 0) {
-            paragraphs.push([...currentParagraph]);
-            currentParagraph.length = 0;
-          }
         }
-        return currentParagraph;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        const tagName = el.tagName.toLowerCase();
+        
+        const newFmt = { ...fmt };
+        
+        switch (tagName) {
+          case "strong":
+          case "b":
+            newFmt.bold = true;
+            break;
+          case "em":
+          case "i":
+            newFmt.italic = true;
+            break;
+          case "u":
+            newFmt.underline = true;
+            break;
+          case "mark":
+            newFmt.highlight = el.style.backgroundColor || "yellow";
+            break;
+          case "span":
+            if (el.style.backgroundColor) {
+              newFmt.highlight = el.style.backgroundColor;
+            }
+            break;
+        }
+        
+        el.childNodes.forEach(child => processNode(child, newFmt));
       }
-
-      // Handle inline formatting elements
-      const newFormatting = { ...formatting };
-
-      switch (tagName) {
-        case "strong":
-        case "b":
-          newFormatting.bold = true;
-          break;
-        case "em":
-        case "i":
-          newFormatting.italic = true;
-          break;
-        case "u":
-          newFormatting.underline = true;
-          break;
-        case "mark":
-          newFormatting.highlight = element.style.backgroundColor || "yellow";
-          break;
-        case "span":
-          if (element.style.backgroundColor) {
-            newFormatting.highlight = element.style.backgroundColor;
-          }
-          if (element.dataset.color) {
-            newFormatting.highlight = element.dataset.color;
-          }
-          break;
+    };
+    
+    if (element.nodeType === Node.TEXT_NODE) {
+      const text = element.textContent || "";
+      if (text) {
+        segments.push({ text, ...formatting });
       }
-
-      element.childNodes.forEach((child) => {
-        processNode(child, newFormatting, currentParagraph);
-      });
+    } else {
+      (element as Element).childNodes.forEach(child => processNode(child, formatting));
     }
-
-    return currentParagraph;
+    
+    return segments;
   };
 
-  // Process all child nodes
-  const currentParagraph: TextSegment[] = [];
-  temp.childNodes.forEach((child) => {
-    processNode(child, {}, currentParagraph);
-  });
+  // Process top-level elements
+  const processElement = (element: Element) => {
+    const tagName = element.tagName.toLowerCase();
 
-  // Don't forget the last paragraph
-  if (currentParagraph.length > 0) {
-    paragraphs.push(currentParagraph);
+    if (tagName === "ol" || tagName === "ul") {
+      // Handle list
+      const listType = tagName === "ol" ? "ordered" : "unordered";
+      const listItems = element.querySelectorAll(":scope > li");
+      
+      listItems.forEach((li, index) => {
+        const segments = extractSegments(li);
+        if (segments.length > 0) {
+          paragraphs.push({
+            segments,
+            listType,
+            listIndex: index + 1,
+            indent: 1,
+          });
+        }
+      });
+    } else if (tagName === "p" || tagName === "div") {
+      const segments = extractSegments(element);
+      if (segments.length > 0) {
+        paragraphs.push({ segments });
+      }
+    } else {
+      // For other elements, just extract text
+      const segments = extractSegments(element);
+      if (segments.length > 0) {
+        paragraphs.push({ segments });
+      }
+    }
+  };
+
+  // Process children
+  if (temp.children.length > 0) {
+    Array.from(temp.children).forEach(processElement);
+  } else {
+    // No block elements - treat as single paragraph
+    const segments = extractSegments(temp);
+    if (segments.length > 0) {
+      paragraphs.push({ segments });
+    }
   }
 
   return paragraphs;
@@ -183,10 +206,10 @@ const colorToRGB = (color: string): { r: number; g: number; b: number } => {
   return namedColors[color.toLowerCase()] || { r: 255, g: 255, b: 0 };
 };
 
-// Draw a paragraph with mixed formatting - KEEPS TEXT ON SAME LINE
-const drawFormattedParagraph = (
+// Draw a paragraph with mixed formatting
+const drawParagraph = (
   pdf: jsPDF,
-  segments: TextSegment[],
+  paragraph: Paragraph,
   startX: number,
   startY: number,
   maxWidth: number,
@@ -197,9 +220,30 @@ const drawFormattedParagraph = (
 ): number => {
   let currentX = startX;
   let currentY = startY;
+  
+  // Add indent for lists
+  const indentSize = (paragraph.indent || 0) * 8;
+  const effectiveStartX = startX + indentSize;
+  const effectiveMaxWidth = maxWidth - indentSize;
+  
+  // Draw list prefix
+  if (paragraph.listType) {
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(10);
+    pdf.setTextColor(55, 65, 81);
+    
+    const prefix = paragraph.listType === "ordered" 
+      ? `${paragraph.listIndex}. `
+      : "• ";
+    
+    pdf.text(prefix, startX, currentY);
+    currentX = effectiveStartX;
+  } else {
+    currentX = effectiveStartX;
+  }
 
-  // Process all segments
-  for (const segment of segments) {
+  // Draw segments
+  for (const segment of paragraph.segments) {
     if (!segment.text) continue;
 
     // Determine font style
@@ -216,7 +260,7 @@ const drawFormattedParagraph = (
     pdf.setFontSize(10);
 
     // Split text into words to handle wrapping
-    const words = segment.text.split(/( +)/); // Keep spaces as separate elements
+    const words = segment.text.split(/( +)/);
 
     for (const word of words) {
       if (!word) continue;
@@ -224,8 +268,8 @@ const drawFormattedParagraph = (
       const wordWidth = pdf.getTextWidth(word);
 
       // Check if we need to wrap to next line
-      if (currentX + wordWidth > startX + maxWidth && currentX > startX) {
-        currentX = startX;
+      if (currentX + wordWidth > startX + maxWidth && currentX > effectiveStartX) {
+        currentX = effectiveStartX;
         currentY += lineHeight;
 
         // Check page break
@@ -319,11 +363,6 @@ export const generatePDF = async ({
     currentY += 6;
   }
 
-  // Subtitle
-  pdf.setFontSize(10);
-  pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(107, 114, 128);
-  // pdf.text("Response Document", margins.left, currentY);
   currentY += 8;
 
   // Line
@@ -394,14 +433,14 @@ export const generatePDF = async ({
       checkPageBreak(10);
 
       if (hasAnswer) {
-        const paragraphs = parseHTMLToSegments(answer);
+        const paragraphs = parseHTMLToParagraphs(answer);
 
         if (paragraphs.length > 0) {
-          for (const segments of paragraphs) {
+          for (const paragraph of paragraphs) {
             checkPageBreak(6);
-            currentY = drawFormattedParagraph(
+            currentY = drawParagraph(
               pdf,
-              segments,
+              paragraph,
               margins.left + 5,
               currentY,
               contentWidth - 10,

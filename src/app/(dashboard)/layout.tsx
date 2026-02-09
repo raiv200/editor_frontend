@@ -16,14 +16,12 @@ export default function DashboardLayout({
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/login");
     }
   }, [authLoading, isAuthenticated, router]);
 
-  // Show loading while checking auth
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -32,7 +30,6 @@ export default function DashboardLayout({
     );
   }
 
-  // Don't render if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -43,10 +40,10 @@ export default function DashboardLayout({
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-50">
-      {/* Fixed Sidebar - never scrolls */}
+      {/* Fixed Sidebar */}
       <AppSidebar />
 
-      {/* Main content area - children handle their own scrolling */}
+      {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {children}
       </div>

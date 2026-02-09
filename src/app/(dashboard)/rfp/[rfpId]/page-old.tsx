@@ -53,9 +53,6 @@ export default function RfpEditorPage({ params }: PageProps) {
   const [answers, setAnswers] = useState<Record<string, AnswerData>>({});
   const [loadingAnswer, setLoadingAnswer] = useState(false);
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
-  
-  // NEW: Track questions with unsaved changes
-  const [unsavedQuestions, setUnsavedQuestions] = useState<Set<string>>(new Set());
 
   // UI State
   const [isOutlineCollapsed, setIsOutlineCollapsed] = useState(false);
@@ -68,6 +65,7 @@ export default function RfpEditorPage({ params }: PageProps) {
     const fetchRfp = async () => {
       try {
         const { rfp: data } = await api.rfps.get(rfpId);
+        console.log("rfp Data",data)
         setRfp(data);
 
         if (data.sections?.length) {
@@ -148,21 +146,6 @@ export default function RfpEditorPage({ params }: PageProps) {
     fetchAnswer();
   }, [activeQuestionId, rfpId, answers]);
 
-  // Handle content change (unsaved)
-  const handleContentChange = useCallback((questionId: string, hasContent: boolean) => {
-    if (hasContent) {
-      // Add to unsaved if there's content
-      setUnsavedQuestions((prev) => new Set([...prev, questionId]));
-    } else {
-      // Remove from unsaved if empty
-      setUnsavedQuestions((prev) => {
-        const next = new Set(prev);
-        next.delete(questionId);
-        return next;
-      });
-    }
-  }, []);
-
   // Save answer
   const handleSaveAnswer = useCallback(
     async (content: { html: string; json: object }) => {
@@ -187,12 +170,6 @@ export default function RfpEditorPage({ params }: PageProps) {
 
       if (content.html && content.html.trim() !== "" && content.html !== "<p></p>") {
         setAnsweredQuestions((prev) => new Set([...prev, activeQuestionId]));
-        // Remove from unsaved after saving
-        setUnsavedQuestions((prev) => {
-          const next = new Set(prev);
-          next.delete(activeQuestionId);
-          return next;
-        });
       }
     },
     [activeQuestionId, rfpId]
@@ -267,8 +244,7 @@ export default function RfpEditorPage({ params }: PageProps) {
     );
   }
 
-  // Calculate online users count (including self)
-  const onlineUsersCount = collabToken ? 1 : 0; // Will be dynamic from editor
+
 
   return (
     <>
@@ -297,9 +273,7 @@ export default function RfpEditorPage({ params }: PageProps) {
 
           {/* Right - Online users and actions */}
           <div className="flex items-center gap-3">
-     
             
-
             {/* Action Buttons */}
             <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               <Users size={16} />
@@ -318,12 +292,11 @@ export default function RfpEditorPage({ params }: PageProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden bg-gray-50">
-        {/* Document Outline - NOW WITH unsavedQuestions */}
+        {/* Document Outline */}
         <DocumentOutline
           sections={rfp.sections || []}
           activeQuestionId={activeQuestionId}
           answeredQuestions={answeredQuestions}
-          unsavedQuestions={unsavedQuestions}
           onQuestionSelect={setActiveQuestionId}
           isCollapsed={isOutlineCollapsed}
           onToggleCollapse={() => setIsOutlineCollapsed(!isOutlineCollapsed)}
@@ -372,8 +345,8 @@ export default function RfpEditorPage({ params }: PageProps) {
               </div>
 
               {/* Editor */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-4xl">
+              <div className="flex-1 overflow-hidden p-1">
+                <div className="h-full max-w-5xl">
                   {collabToken ? (
                     loadingAnswer ? (
                       <div className="border border-gray-200 rounded-xl bg-white p-8 flex items-center justify-center min-h-[300px]">
@@ -395,7 +368,6 @@ export default function RfpEditorPage({ params }: PageProps) {
                         placeholder="Start typing your answer or select an AI suggestion from the right panel..."
                         initialContent={currentAnswer?.answer || null}
                         onSave={handleSaveAnswer}
-                        onContentChange={(hasContent) => handleContentChange(activeQuestion.id, hasContent)}
                         maxChars={activeQuestion.maxChars || 3000}
                         answeredAt={currentAnswer?.answeredAt}
                       />
@@ -443,9 +415,7 @@ export default function RfpEditorPage({ params }: PageProps) {
 
                   {/* Right - Next Question */}
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-gray-500">
-                      {questionIndex.current} of {questionIndex.total}
-                    </span>
+                   
                     <button
                       onClick={handleNextQuestion}
                       disabled={questionIndex.current >= questionIndex.total}
