@@ -108,6 +108,12 @@ export const api = {
     getStatus: async () => {
       return fetchWithAuth('/api/collaboration/status');
     },
+
+    /** Resolve user IDs to names and colors from the database */
+    getUsers: async (userIds: string[]) => {
+      const ids = userIds.join(',');
+      return fetchWithAuth(`/api/collaboration/users?ids=${encodeURIComponent(ids)}`);
+    },
   },
 };
 

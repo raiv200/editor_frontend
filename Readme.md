@@ -178,3 +178,10 @@ The following use dummy data that will be replaced with API calls:
 3. **Preview Page Removed**: The old `/preview/[rfpId]` route is replaced with the new flow: Review → Export → Success.
 
 4. **Sidebar persists**: Using Next.js route groups, the sidebar never re-renders during navigation.
+
+
+### PRO Extension Installation
+
+Get TIPTAP_PRO_TOKEN from .env file
+
+TIPTAP_PRO_TOKEN=actual-auth-token npm install --save @tiptap-pro/extension-comments

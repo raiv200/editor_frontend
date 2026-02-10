@@ -9,6 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tiptap-pro/extension-comments": "^3.3.1",
+    "@tiptap-pro/extension-snapshot": "^3.3.1",
+    "@tiptap-pro/extension-snapshot-compare": "^3.3.0-alpha.14",
     "@tiptap-pro/provider": "^3.0.0",
     "@tiptap/extension-collaboration": "^3.0.0",
     "@tiptap/extension-collaboration-caret": "^3.19.0",
@@ -19,15 +22,15 @@
     "@tiptap/pm": "^3.0.0",
     "@tiptap/react": "^3.0.0",
     "@tiptap/starter-kit": "^3.0.0",
+    "docx": "^9.5.1",
+    "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.0.0",
     "lucide-react": "^0.460.0",
     "next": "15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "yjs": "^13.6.20",
-    "docx": "^9.5.1",
-    "file-saver": "^2.0.5",
-    "html2canvas": "^1.4.1",
-    "jspdf": "^4.0.0"
+    "yjs": "^13.6.20"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

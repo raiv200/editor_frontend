@@ -80,7 +80,7 @@
 [data-diff-type="inline-update"],
 [data-diff-type="block-insert"] {
   background-color: rgba(34, 197, 94, 0.2);
-  /* border-bottom: 2px solid rgba(34, 197, 94, 0.5); */
+  border-bottom: 2px solid rgba(34, 197, 94, 0.5);
 }
 
 [data-diff-type="inline-delete"],
@@ -122,7 +122,32 @@ code [data-diff-type="block-delete"] {
   font-family: monospace;
 }
 
-/* User attribution — no hover tooltip, use legend instead */
+/* User attribution tooltip on hover */
+[data-diff-user-id] {
+  position: relative;
+  cursor: default;
+}
+
+[data-diff-user-id]::after {
+  content: attr(data-diff-user-id);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #1f2937;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+[data-diff-user-id]:hover::after {
+  opacity: 1;
+}
 
 /* ─── Toast Animation ─── */
 

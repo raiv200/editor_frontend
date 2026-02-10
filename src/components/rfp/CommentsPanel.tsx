@@ -234,8 +234,8 @@ export default function CommentsPanel({
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="border-t border-gray-200 p-4">
+
+      {/* <div className="border-t border-gray-200 p-4">
         <h4 className="text-sm font-semibold text-gray-900 mb-3">
           Recent Activity
         </h4>
@@ -250,7 +250,7 @@ export default function CommentsPanel({
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
 
       {/* Add Comment Button */}
       <div className="p-4 border-t border-gray-200">
