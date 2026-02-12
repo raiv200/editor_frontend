@@ -23,7 +23,6 @@ import {
   MessageSquare,
   User,
   FileCheck,
-  MessageSquareText,
 } from "lucide-react";
 
 interface PageProps {
@@ -54,14 +53,13 @@ export default function RfpEditorPage({ params }: PageProps) {
   const [answers, setAnswers] = useState<Record<string, AnswerData>>({});
   const [loadingAnswer, setLoadingAnswer] = useState(false);
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
+  
+  // NEW: Track questions with unsaved changes
   const [unsavedQuestions, setUnsavedQuestions] = useState<Set<string>>(new Set());
-
-  // Editor + Provider refs for CommentsPanel
-  const [editorCtx, setEditorCtx] = useState<{ editor: any; provider: any } | null>(null);
 
   // UI State
   const [isOutlineCollapsed, setIsOutlineCollapsed] = useState(false);
-  const [rightPanel, setRightPanel] = useState<RightPanel>("ai");
+  const [rightPanel, setRightPanel] = useState<RightPanel>("comments");
 
   // Fetch RFP data
   useEffect(() => {
@@ -150,11 +148,13 @@ export default function RfpEditorPage({ params }: PageProps) {
     fetchAnswer();
   }, [activeQuestionId, rfpId, answers]);
 
-  // Handle content change
+  // Handle content change (unsaved)
   const handleContentChange = useCallback((questionId: string, hasContent: boolean) => {
     if (hasContent) {
+      // Add to unsaved if there's content
       setUnsavedQuestions((prev) => new Set([...prev, questionId]));
     } else {
+      // Remove from unsaved if empty
       setUnsavedQuestions((prev) => {
         const next = new Set(prev);
         next.delete(questionId);
@@ -187,6 +187,7 @@ export default function RfpEditorPage({ params }: PageProps) {
 
       if (content.html && content.html.trim() !== "" && content.html !== "<p></p>") {
         setAnsweredQuestions((prev) => new Set([...prev, activeQuestionId]));
+        // Remove from unsaved after saving
         setUnsavedQuestions((prev) => {
           const next = new Set(prev);
           next.delete(activeQuestionId);
@@ -200,17 +201,13 @@ export default function RfpEditorPage({ params }: PageProps) {
   // Navigate to next question
   const handleNextQuestion = () => {
     if (!rfp?.sections || !activeQuestionId) return;
+
     const allQuestions = rfp.sections.flatMap((s) => s.questions);
     const currentIndex = allQuestions.findIndex((q) => q.id === activeQuestionId);
+
     if (currentIndex < allQuestions.length - 1) {
-      setEditorCtx(null); // Reset when switching questions
       setActiveQuestionId(allQuestions[currentIndex + 1].id);
     }
-  };
-
-  // Handle insert from AI panel
-  const handleInsertContent = (content: string) => {
-    console.log("Insert content:", content);
   };
 
   // Get current question info
@@ -220,6 +217,7 @@ export default function RfpEditorPage({ params }: PageProps) {
 
   const currentAnswer = activeQuestionId ? answers[activeQuestionId] : null;
 
+  // Get question index info
   const getQuestionIndex = () => {
     if (!rfp?.sections || !activeQuestionId) return { current: 0, total: 0 };
     const allQuestions = rfp.sections.flatMap((s) => s.questions);
@@ -227,6 +225,7 @@ export default function RfpEditorPage({ params }: PageProps) {
     return { current: currentIndex + 1, total: allQuestions.length };
   };
 
+  // Get current section
   const getCurrentSection = () => {
     if (!rfp?.sections || !activeQuestionId) return null;
     return rfp.sections.find((s) => s.questions.some((q) => q.id === activeQuestionId));
@@ -234,6 +233,13 @@ export default function RfpEditorPage({ params }: PageProps) {
 
   const questionIndex = getQuestionIndex();
   const currentSection = getCurrentSection();
+
+  // Handle insert from AI panel
+  const handleInsertContent = (content: string) => {
+    // This would need to be passed to the editor
+    // For now, we'll just log it - in production, use a ref to the editor
+    console.log("Insert content:", content);
+  };
 
   // Loading state
   if (isLoading) {
@@ -250,13 +256,19 @@ export default function RfpEditorPage({ params }: PageProps) {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || "RFP not found"}</p>
-          <button onClick={() => router.push("/")} className="text-blue-600 hover:underline">
+          <button
+            onClick={() => router.push("/")}
+            className="text-blue-600 hover:underline"
+          >
             Back to Dashboard
           </button>
         </div>
       </div>
     );
   }
+
+  // Calculate online users count (including self)
+  const onlineUsersCount = collabToken ? 1 : 0; // Will be dynamic from editor
 
   return (
     <>
@@ -266,8 +278,12 @@ export default function RfpEditorPage({ params }: PageProps) {
       {/* RFP Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
+          {/* Left - Back button and RFP info */}
           <div className="flex items-center gap-4">
-            <button onClick={() => router.push("/")} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button
+              onClick={() => router.push("/")}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
             <div>
@@ -278,7 +294,13 @@ export default function RfpEditorPage({ params }: PageProps) {
               </p>
             </div>
           </div>
+
+          {/* Right - Online users and actions */}
           <div className="flex items-center gap-3">
+     
+            
+
+            {/* Action Buttons */}
             <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               <Users size={16} />
               Enable Collaboration
@@ -296,7 +318,7 @@ export default function RfpEditorPage({ params }: PageProps) {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden bg-gray-50">
-        {/* Document Outline */}
+        {/* Document Outline - NOW WITH unsavedQuestions */}
         <DocumentOutline
           sections={rfp.sections || []}
           activeQuestionId={activeQuestionId}
@@ -314,6 +336,7 @@ export default function RfpEditorPage({ params }: PageProps) {
               {/* Question Header */}
               <div className="bg-white border-b border-gray-200 px-6 py-4">
                 <div className="flex items-center justify-between">
+                  {/* Left - Question badge and metadata */}
                   <div className="flex items-center gap-4">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg">
                       <FileText size={14} />
@@ -323,6 +346,8 @@ export default function RfpEditorPage({ params }: PageProps) {
                         ?.questions.findIndex((q) => q.id === activeQuestionId) ?? 0) + 1}
                     </span>
                   </div>
+
+                  {/* Right - Assigned user and word limit */}
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span className="flex items-center gap-1.5">
                       <User size={14} />
@@ -334,6 +359,8 @@ export default function RfpEditorPage({ params }: PageProps) {
                     </span>
                   </div>
                 </div>
+
+                {/* Question Title and Description */}
                 <div className="mt-4">
                   <h2 className="text-lg font-semibold text-gray-900">
                     {activeQuestion.fullQuestion || activeQuestion.title}
@@ -362,19 +389,16 @@ export default function RfpEditorPage({ params }: PageProps) {
                         token={collabToken.token}
                         appId={collabToken.appId}
                         user={{
-                          id: collabToken.user.id,
+                          id:collabToken.user.id,
                           name: collabToken.user.name,
                           color: collabToken.user.color,
                         }}
-                        onEditorReady={setEditorCtx}
                         placeholder="Start typing your answer or select an AI suggestion from the right panel..."
                         initialContent={currentAnswer?.answer || null}
                         onSave={handleSaveAnswer}
                         onContentChange={(hasContent) => handleContentChange(activeQuestion.id, hasContent)}
                         maxChars={activeQuestion.maxChars || 3000}
                         answeredAt={currentAnswer?.answeredAt}
-                        rightPanel={rightPanel}
-                        setRightPanel={setRightPanel}
                       />
                     )
                   ) : collabError ? (
@@ -382,8 +406,12 @@ export default function RfpEditorPage({ params }: PageProps) {
                       <div className="flex items-start gap-3">
                         <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <p className="font-medium text-yellow-800">Collaboration unavailable</p>
-                          <p className="text-sm text-yellow-700 mt-1">{collabError}</p>
+                          <p className="font-medium text-yellow-800">
+                            Collaboration unavailable
+                          </p>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            {collabError}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -392,23 +420,29 @@ export default function RfpEditorPage({ params }: PageProps) {
                       <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                     </div>
                   )}
+
+                  {/* Last saved indicator */}
+                  {/* {currentAnswer?.answeredAt && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Last saved: {new Date(currentAnswer.answeredAt).toLocaleString()}
+                    </p>
+                  )} */}
                 </div>
               </div>
 
               {/* Footer Navigation */}
               <div className="bg-white border-t border-gray-200 px-6 py-4">
-                <div className="flex items-center justify-end max-w-4xl">
-                  {/* <button
+                <div className="flex items-center justify-between max-w-4xl">
+                  {/* Left - Add Comment */}
+                  <button
                     onClick={() => setRightPanel("comments")}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      rightPanel === "comments"
-                        ? "text-blue-600 bg-blue-50"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <MessageSquare size={16} />
-                    {rightPanel === "comments" ? "Hide Comments" : "Show Comments"}
-                  </button> */}
+                    Add Comment
+                  </button>
+
+                  {/* Right - Next Question */}
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-gray-500">
                       {questionIndex.current} of {questionIndex.total}
@@ -432,27 +466,19 @@ export default function RfpEditorPage({ params }: PageProps) {
           )}
         </main>
 
-        {/* Right Panel — AI Suggestions or Comments */}
-        {rightPanel === "ai" && activeQuestionId && (
+        {/* Right Panel - AI Suggestions or Comments */}
+        {/* {rightPanel === "ai" && activeQuestionId && (
           <AISuggestionsPanel
             questionId={activeQuestionId}
             onInsert={handleInsertContent}
           />
-        )}
+        )} */}
         {rightPanel === "comments" && activeQuestionId && (
-          <CommentsPanel
-            provider={editorCtx?.provider || null}
-            editor={editorCtx?.editor || null}
-            user={{
-              id: collabToken?.user.id || "",
-              name: collabToken?.user.name || user?.name || "",
-              color: collabToken?.user.color || "#3B82F6",
-            }}
-          />
+          <CommentsPanel questionId={activeQuestionId} />
         )}
 
-        {/* Panel Toggle Buttons */}
-        {/* <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
+        {/* Panel Toggle Buttons (floating) */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-10">
           <button
             onClick={() => setRightPanel(rightPanel === "ai" ? null : "ai")}
             className={`p-2 rounded-lg shadow-md transition-colors ${
@@ -473,9 +499,9 @@ export default function RfpEditorPage({ params }: PageProps) {
             }`}
             title="Comments"
           >
-            <MessageSquareText size={18} />
+            <MessageSquare size={18} />
           </button>
-        </div> */}
+        </div>
       </div>
     </>
   );

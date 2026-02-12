@@ -9,13 +9,8 @@ import AppHeader from "@/components/layout/AppHeader";
 import ExportOptionsPanel from "@/components/ExportOptionsPanel";
 import { useExport } from "@/hooks/useExport";
 import type { Rfp, Section, Question } from "@/types";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Send,
-  Loader2,
-  Check,
-} from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeft, CheckCircle2, Send, Loader2, Check } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ rfpId: string }>;
@@ -51,6 +46,7 @@ export default function ExportPage({ params }: PageProps) {
     quality: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [manualStatusUpdate, setManualStatusUpdate] = useState(false);
 
   // Fetch RFP data and answers
   useEffect(() => {
@@ -63,7 +59,9 @@ export default function ExportPage({ params }: PageProps) {
 
         // Fetch all answers
         if (data.sections?.length) {
-          const allQuestions = data.sections.flatMap((s: Section) => s.questions);
+          const allQuestions = data.sections.flatMap(
+            (s: Section) => s.questions,
+          );
           const answerPromises = allQuestions.map(async (q: Question) => {
             try {
               const answerData = await api.rfps.getAnswer(rfpId, q.id);
@@ -109,7 +107,7 @@ export default function ExportPage({ params }: PageProps) {
     (questionId: string): string => {
       return answers[questionId] || "";
     },
-    [answers]
+    [answers],
   );
 
   const getStatus = useCallback(
@@ -120,7 +118,7 @@ export default function ExportPage({ params }: PageProps) {
       }
       return "empty";
     },
-    [answers]
+    [answers],
   );
 
   // Export hook
@@ -164,7 +162,10 @@ export default function ExportPage({ params }: PageProps) {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error || "RFP not found"}</p>
-          <button onClick={() => router.back()} className="text-blue-600 hover:underline">
+          <button
+            onClick={() => router.back()}
+            className="text-blue-600 hover:underline"
+          >
             Go Back
           </button>
         </div>
@@ -181,17 +182,18 @@ export default function ExportPage({ params }: PageProps) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push(`/review/${rfpId}`)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            <ArrowLeft size={16} />
-            Back
+            <ArrowLeft size={20} className="text-gray-600" />
           </button>
-        </div>
-        <div className="mt-2">
-          <h1 className="text-xl font-semibold text-gray-900">Export & Submit</h1>
-          <p className="text-sm text-gray-500">
-            Generate final document and submit your RFP response
-          </p>
+          <div className="">
+            <h1 className="text-lg font-semibold text-gray-900">
+              Export & Submit
+            </h1>
+            <p className="text-sm text-gray-500">
+              Generate final document and submit your RFP response
+            </p>
+          </div>
         </div>
       </div>
 
@@ -204,9 +206,12 @@ export default function ExportPage({ params }: PageProps) {
                 <CheckCircle2 size={24} className="text-green-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Document Approved!</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Document Approved!
+                </h2>
                 <p className="text-sm text-gray-500">
-                  All sections have been reviewed and approved. Ready for export and submission.
+                  All sections have been reviewed and approved. Ready for export
+                  and submission.
                 </p>
               </div>
             </div>
@@ -225,118 +230,121 @@ export default function ExportPage({ params }: PageProps) {
             />
 
             {/* Right - Submit Response */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-5">
+            <div className="bg-white rounded-xl border border-gray-200 ">
+              {/* <div className="flex items-center gap-2 mb-5">
                 <Send size={18} className="text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-800">Submit Response</h3>
-              </div>
-
-              {/* RFP Details */}
-              <div className="space-y-3 mb-5">
-                <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">RFP Title</span>
-                  <p className="text-sm font-medium text-gray-900">{rfp.title}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Client</span>
-                  <p className="text-sm font-medium text-gray-900">{rfp.company}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Deadline</span>
-                  <p className="text-sm font-medium text-gray-900">
-                    {rfp.dueDate
-                      ? new Date(rfp.dueDate).toLocaleDateString("en-US", {
-                          month: "long",
-                          day: "numeric",
-                          year: "numeric",
-                        }) + " - 5:00 PM EST"
-                      : "No deadline set"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Estimated Value</span>
-                  <p className="text-sm font-medium text-gray-900">$450,000</p>
-                </div>
-              </div>
-
-              {/* Submission Method */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Submission Method
-                </label>
-                <select
-                  value={submissionMethod}
-                  onChange={(e) => setSubmissionMethod(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="email">Email to Procurement@techcorp.com</option>
-                  <option value="portal">Client Portal Upload</option>
-                  <option value="manual">Manual Submission</option>
-                </select>
-              </div>
-
-              {/* Submission Notes */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Submission Notes
-                </label>
-                <textarea
-                  value={submissionNotes}
-                  onChange={(e) => setSubmissionNotes(e.target.value)}
-                  placeholder="Add any notes about the submission..."
-                  rows={2}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-
-              {/* Pre-Submission Checklist */}
-              {/* <div className="mb-5">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pre-Submission Checklist
-                </label>
-                <div className="space-y-2">
-                  <CheckboxOption
-                    checked={checklist.allAnswered}
-                    onChange={(v) => setChecklist({ ...checklist, allAnswered: v })}
-                    label="All questions answered"
-                  />
-                  <CheckboxOption
-                    checked={checklist.reviewed}
-                    onChange={(v) => setChecklist({ ...checklist, reviewed: v })}
-                    label="Document reviewed and approved"
-                  />
-                  <CheckboxOption
-                    checked={checklist.supporting}
-                    onChange={(v) => setChecklist({ ...checklist, supporting: v })}
-                    label="Supporting documents attached"
-                  />
-                  <CheckboxOption
-                    checked={checklist.quality}
-                    onChange={(v) => setChecklist({ ...checklist, quality: v })}
-                    label="Final quality check completed"
-                  />
-                </div>
+                <h3 className="text-sm font-semibold text-gray-800">
+                  Submit Response
+                </h3>
               </div> */}
+              <div className="flex items-center gap-3 border-b-[1px] px-6 py-3">
+                <span className="text-sm font-medium text-gray-400">
+                  Manual Status Update
+                </span>
+                <span className="flex items-center text-sm font-semibold text-gray-900 ml-2">
+                  <Switch
+                    checked={manualStatusUpdate}
+                    onCheckedChange={setManualStatusUpdate}
+                  />
+                  <p className="pl-2">Send RFP to Client</p>
+                </span>
+              </div>
 
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmit}
-                // disabled={isSubmitting || !Object.values(checklist).every(Boolean)}
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Send size={16} />
-                    Submit RFP Response
-                  </>
-                )}
-              </button>
+              <div className="px-6 py-4">
+                {/* RFP Details */}
+                <div className="space-y-3 mb-5">
+                  <div>
+                    <span className="text-xs text-gray-500 uppercase tracking-wide">
+                      RFP Title
+                    </span>
+                    <p className="text-sm font-medium text-gray-900">
+                      {rfp.title}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 uppercase tracking-wide">
+                      Client
+                    </span>
+                    <p className="text-sm font-medium text-gray-900">
+                      {rfp.company}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 uppercase tracking-wide">
+                      Deadline
+                    </span>
+                    <p className="text-sm font-medium text-gray-900">
+                      {rfp.dueDate
+                        ? new Date(rfp.dueDate).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          }) + " - 5:00 PM EST"
+                        : "No deadline set"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 uppercase tracking-wide">
+                      Estimated Value
+                    </span>
+                    <p className="text-sm font-medium text-gray-900">
+                      $450,000
+                    </p>
+                  </div>
+                </div>
+
+                {/* Submission Method */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Submission Method
+                  </label>
+                  <select
+                    value={submissionMethod}
+                    onChange={(e) => setSubmissionMethod(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="email">
+                      Email to Procurement@techcorp.com
+                    </option>
+                    <option value="portal">Client Portal Upload</option>
+                    <option value="manual">Manual Submission</option>
+                  </select>
+                </div>
+
+                {/* Submission Notes */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Submission Notes
+                  </label>
+                  <textarea
+                    value={submissionNotes}
+                    onChange={(e) => setSubmissionNotes(e.target.value)}
+                    placeholder="Add any notes about the submission..."
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleSubmit}
+                  // disabled={isSubmitting || !Object.values(checklist).every(Boolean)}
+                  disabled={isSubmitting}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      Submit RFP Response
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 

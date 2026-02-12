@@ -1,5 +1,3 @@
-// src/app/(dashboard)/success/[rfpId]/page.tsx
-
 "use client";
 
 import { useState, useEffect, use } from "react";
@@ -14,8 +12,8 @@ import {
   Users,
   Sparkles,
   Plus,
-  ArrowLeft,
   Loader2,
+  Check,
 } from "lucide-react";
 
 interface PageProps {
@@ -59,11 +57,11 @@ export default function SuccessPage({ params }: PageProps) {
       <AppHeader />
 
       <div className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="max-w-3xl mx-auto py-16 px-6">
+        <div className=" mx-auto py-16 px-6">
           {/* Success Icon */}
           <div className="text-center mb-8">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 size={48} className="text-green-600" />
+            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Check size={40} className="text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-3">
               RFP Submitted Successfully!
@@ -75,7 +73,7 @@ export default function SuccessPage({ params }: PageProps) {
           </div>
 
           {/* Journey Summary Card */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 mb-8">
+          <div className="max-w-5xl  mx-auto bg-white rounded-2xl border border-gray-200 p-8 mb-8">
             <h2 className="text-xl font-semibold text-gray-900 text-center mb-8">
               Journey Summary
             </h2>
@@ -83,8 +81,8 @@ export default function SuccessPage({ params }: PageProps) {
             <div className="grid grid-cols-4 gap-6">
               {/* Time */}
               <div className="text-center">
-                <div className="w-14 h-14 bg-pink-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Clock size={24} className="text-pink-600" />
+                <div className="w-16 h-16 bg-pink-200 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Clock size={28} className="text-pink-600" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900">18 minutes</p>
                 <p className="text-sm text-gray-500">Total Time</p>
@@ -92,8 +90,8 @@ export default function SuccessPage({ params }: PageProps) {
 
               {/* Speed */}
               <div className="text-center">
-                <div className="w-14 h-14 bg-rose-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <TrendingUp size={24} className="text-rose-600" />
+                <div className="w-16 h-16 bg-rose-200 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <TrendingUp size={28} className="text-rose-600" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900">70% Faster</p>
                 <p className="text-sm text-gray-500">Than manual process</p>
@@ -101,8 +99,8 @@ export default function SuccessPage({ params }: PageProps) {
 
               {/* Team */}
               <div className="text-center">
-                <div className="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Users size={24} className="text-cyan-600" />
+                <div className="w-16 h-16 bg-cyan-200 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Users size={28} className="text-cyan-600" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900">4 Team members</p>
                 <p className="text-sm text-gray-500">Collaborated</p>
@@ -110,8 +108,8 @@ export default function SuccessPage({ params }: PageProps) {
 
               {/* AI */}
               <div className="text-center">
-                <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Sparkles size={24} className="text-orange-600" />
+                <div className="w-16 h-16 bg-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Sparkles size={28} className="text-amber-600" />
                 </div>
                 <p className="text-2xl font-bold text-gray-900">72 AI Suggestions</p>
                 <p className="text-sm text-gray-500">Generated</p>
@@ -128,10 +126,7 @@ export default function SuccessPage({ params }: PageProps) {
               Back to Dashboard
             </button>
             <button
-              onClick={() => {
-                // Create new RFP
-                router.push("/");
-              }}
+              onClick={() => router.push("/")}
               className="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus size={16} />

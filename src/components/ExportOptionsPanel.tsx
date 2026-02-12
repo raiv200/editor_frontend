@@ -40,7 +40,7 @@ export default function ExportOptionsPanel({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col h-full">
       <div className="flex items-center gap-2 mb-5">
         <FileText size={18} className="text-gray-600" />
         <h3 className="text-sm font-semibold text-gray-800">Export Options</h3>
@@ -177,7 +177,7 @@ export default function ExportOptionsPanel({
       <button
         onClick={onExport}
         disabled={isExporting}
-        className="w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+       className="w-full px-4 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 mt-auto"
       >
         {isExporting ? (
           <>
